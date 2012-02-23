@@ -6,6 +6,7 @@
     CANVAS_USE_RATIO = 0.75;
     FRAME_INTERVAL_MS = 50;
     VECTOR_NORMALIZED_MAGNITUDE = 30.0;
+    timelineHighlight = null;
 
     renderData = new Array();
     currentFrame = 0;
@@ -70,7 +71,59 @@
         var charPos = 0;
         var lastLineLength = 0;
         var lines = document.getElementById('trace').value.split(/\r|\n/);
+        lines.sort(function compare(a,b) {
+            if (! /RENDERTRACE/.test(a) && ! /RENDERTRACE/.test(b)) {
+                return 0;
+            }
+            if (! /RENDERTRACE/.test(a)) {
+                return 1;
+            }
+            if (! /RENDERTRACE/.test(b)) {
+                return -1;
+            }
+            var tokens = a.split(/\s+/);
+            var j = 0;
+            // skip tokens until RENDERTRACE
+            while (j < tokens.length && tokens[j++] != "RENDERTRACE");
+            if (j >= tokens.length - 2) {
+                log("Error parsing line: " + lines[i]);
+                return 0;
+            }
+            var timestampA = tokens[j++];
+            tokens = b.split(/\s+/);
+            j = 0;
+            // skip tokens until RENDERTRACE
+            while (j < tokens.length && tokens[j++] != "RENDERTRACE");
+            if (j >= tokens.length - 2) {
+                log("Error parsing line: " + lines[i]);
+                return;
+            }
+            var timestampB = tokens[j++];
+            if (timestampA == timestampB ) return 0;
+            if (timestampA > timestampB ) return 1;
+            if (timestampA < timestampB ) return -1;
+        });
         for (var i = 0; i < lines.length; i++) {
+            // skip lines without RENDERTRACE
+            if (! /RENDERTRACE/.test(lines[i])) {
+                continue;
+            }
+
+            var tokens = lines[i].split(/\s+/);
+            var j = 0;
+            // skip tokens until RENDERTRACE
+            while (j < tokens.length && tokens[j++] != "RENDERTRACE");
+            if (j >= tokens.length - 2) {
+                log("Error parsing line: " + lines[i]);
+                continue;
+            }
+
+            var timestamp = parseInt(tokens[j++]);
+
+        }
+
+        for (var i = 0; i < lines.length; i++) {
+            dump(lines[i] + "\n");
             charPos += lastLineLength;
             lastLineLength = lines[i].length + 1;
             // skip lines without RENDERTRACE
@@ -215,7 +268,7 @@
             context.moveTo(time / 1000 * pixelsPerSecond, 20);
             context.lineTo(time / 1000 * pixelsPerSecond, canvas.height);
             context.closePath();
-            context.stroke();
+            //context.stroke();
         }
 
         var colorToRow = {};
@@ -236,7 +289,15 @@
                         }
 
                         context.fillStyle = j;
+                        if (timelineHighlight == j) {
+                            context.shadowOffsetX = 5;
+                            context.shadowOffsetY = 5;
+                            context.shadowBlur    = 4;
+                            context.shadowColor   = 'rgba(255, 0, 0, 0.5)';
+                        }
                         context.fillRect(startTime / 1000 * pixelsPerSecond, 30 + row * 20, (endTime - startTime) / 1000 * pixelsPerSecond, 10);
+                        context.shadowBlur    = 0;
+                        context.shadowColor   = 'rgba(0, 0, 0, 0)';
                         
                     }
                 }
@@ -430,6 +491,7 @@
             elem.textContent = renderData[frame].rects[i].srcLine;
             elem.onmouseover = (function(i, frame) {
                 return function() {
+                    timelineHighlight = i;
                     renderFrame();
                     context.translate(canvas.offsetX, canvas.offsetY);  
                     context.scale(canvas.zoomLevel, canvas.zoomLevel);  
@@ -960,8 +1022,8 @@ SHADOW RENDERTRACE 2361305538 rect #130000 12 35 20 20
     <button onclick="step(false)">&gt;</button>
     <button onclick="reset(false)">&raquo;</button>
    </div>
-   <div style="height: 100px; overflow:scroll;">
-     <canvas id="timeline" width="100" height="200">Canvas not supported!</canvas>
+   <div style="height: 200px; overflow:scroll;">
+     <canvas id="timeline" width="100" height="300">Canvas not supported!</canvas>
    </div>
   </div>
   <canvas id="canvas" width="700" height="600" style="border: solid 1px black; float: left">Canvas not supported!</canvas>
